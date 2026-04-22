@@ -4,19 +4,24 @@ Daily Tech & AI News Newsletter
 Fetches from RSS feeds, posts to Slack, and saves a dated markdown archive file.
 
 Required env vars:
-  GROQ_API_KEY    - Groq API key for newsletter generation
-  SLACK_BOT_TOKEN - Slack bot token (xoxb-...)
-  SLACK_CHANNEL   - Channel name or ID (default: #daily-news)
+  GROQ_API_KEY       - Groq API key for newsletter generation
+  GMAIL_USER         - Gmail address to send from
+  GMAIL_APP_PASSWORD - Gmail app password (not your account password)
+  EMAIL_RECIPIENTS   - Comma-separated list of recipient emails
 """
 
 import os
 import re
 import datetime
 import json
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 
 from groq import Groq
 import feedparser
+import markdown as md
 import requests
 
 
@@ -288,6 +293,39 @@ def save_markdown(content: str, date: datetime.datetime) -> Path:
     return path
 
 
+# ── Email ─────────────────────────────────────────────────────────────────────
+
+def send_email(
+    content: str,
+    date: datetime.datetime,
+    gmail_user: str,
+    app_password: str,
+    recipients: list[str],
+) -> None:
+    subject = f"Small Byte — {date.strftime('%B %d, %Y')}"
+
+    html_body = f"""
+    <html><body style="font-family:sans-serif;max-width:640px;margin:auto;padding:24px;color:#222;">
+    {md.markdown(content)}
+    </body></html>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"Small Byte <{gmail_user}>"
+    msg["To"] = gmail_user
+    msg["Bcc"] = ", ".join(recipients)
+
+    msg.attach(MIMEText(content, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(gmail_user, app_password)
+        server.sendmail(gmail_user, [gmail_user] + recipients, msg.as_string())
+
+    print(f"[OK] Email sent to {len(recipients)} recipients")
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -315,14 +353,18 @@ def main() -> None:
 
     save_markdown(markdown, date)
 
-    slack_token = os.environ.get("SLACK_BOT_TOKEN")
-    slack_channel = os.environ.get("SLACK_CHANNEL", "#daily-news")
+    gmail_user = os.environ.get("GMAIL_USER")
+    app_password = os.environ.get("GMAIL_APP_PASSWORD")
+    recipients_raw = os.environ.get("EMAIL_RECIPIENTS", "")
+    recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
 
-    if slack_token:
-        blocks = build_slack_blocks(articles, date)
-        post_to_slack(blocks, slack_token, slack_channel)
+    if gmail_user and app_password and recipients:
+        try:
+            send_email(markdown, date, gmail_user, app_password, recipients)
+        except Exception as exc:
+            print(f"[WARN] Email sending failed: {exc}")
     else:
-        print("[WARN] SLACK_BOT_TOKEN not set — skipping Slack post")
+        print("[WARN] Email secrets not set — skipping email")
 
 
 if __name__ == "__main__":
