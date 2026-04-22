@@ -78,32 +78,67 @@ def fetch_articles() -> list[dict]:
     return articles
 
 
-def _claude_prompt_payload(articles: list[dict], date: datetime.datetime) -> str:
-    payload = []
-    for article in articles:
-        payload.append({
-            "title": article["title"],
-            "source": article["source"],
-            "category": article["category"],
-            "summary": article["summary"],
-            "link": article["link"],
-        })
+NEWSLETTER_EXAMPLE = """# Daily Tech & AI News — April 21, 2026
 
-    return (
-        "Create a concise daily newsletter in markdown from the JSON articles.\n"
-        f"Date: {date.strftime('%Y-%m-%d')}\n"
-        "Requirements:\n"
-        "- Keep heading exactly: # Daily Tech & AI News — <Month DD, YYYY>\n"
-        "- Include a short one paragraph intro.\n"
-        "- Group by categories as ## AI and ## Tech.\n"
-        "- For each article include:\n"
-        "  - Title as markdown link\n"
-        "  - Source line in bold\n"
-        "  - A 1-2 sentence rewritten summary in plain english\n"
-        "- Keep overall length readable for Slack.\n"
-        "- Do not hallucinate facts that are not present in article summaries.\n\n"
-        f"Articles JSON:\n{json.dumps(payload, ensure_ascii=False)}"
+> Generated 2026-04-21 at 08:00 UTC · 12 articles
+
+---
+
+## 🤖 AI
+
+### OpenAI Surpasses $25B Annualized Revenue, Eyes IPO
+**Source:** AI Flash Report
+
+OpenAI has surpassed $25 billion in annualized revenue and is reportedly taking early steps toward a public listing, potentially as soon as late 2026. Rival Anthropic is approaching $19 billion in annualized revenue, reflecting explosive demand for foundation-model APIs.
+
+---
+
+## 💻 Tech
+
+### Workday's Sana Agents Ship with 300+ Prebuilt Skills
+**Source:** VentureBeat
+
+Workday's co-founder-CEO unveiled the next wave of Sana, including a Self-Service Agent with 300+ prebuilt skills across pay, time, absence, and expense.
+
+---
+
+*Sources: [AI Flash Report](https://aiflashreport.com/) · [VentureBeat](https://venturebeat.com/)*"""
+
+
+def _build_newsletter_prompt(articles: list[dict], date: datetime.datetime) -> str:
+    payload = [
+        {k: article[k] for k in ("title", "source", "category", "summary", "link")}
+        for article in articles
+    ]
+
+    sources = " · ".join(
+        f'[{a["source"]}]({a["link"]})' for a in articles
     )
+
+    return f"""You are a tech newsletter writer. Produce output in EXACTLY this format — no deviations:
+
+<example>
+{NEWSLETTER_EXAMPLE}
+</example>
+
+Rules:
+- Heading: # Daily Tech & AI News — <Month DD, YYYY>
+- Second line: > Generated {date.strftime('%Y-%m-%d')} at 08:00 UTC · {{n}} articles
+- Separate sections with ---
+- Categories with emojis: ## 🤖 AI, ## 💻 Tech, ## 💰 Funding (only include if articles exist)
+- Each article: ### Title as markdown link, **Source:** Name, then 1-2 sentence summary
+- Footer: *Sources: [Name](url) · [Name](url)*
+- Do NOT add any text before or after the newsletter
+- Do NOT hallucinate facts not present in the summaries
+
+Date: {date.strftime('%B %d, %Y')}
+Article count: {len(articles)}
+
+Articles JSON:
+{json.dumps(payload, ensure_ascii=False, indent=2)}
+
+Sources footer:
+{sources}"""
 
 
 def generate_markdown_with_groq(
@@ -116,7 +151,7 @@ def generate_markdown_with_groq(
         model=model,
         max_tokens=2200,
         temperature=0.2,
-        messages=[{"role": "user", "content": _claude_prompt_payload(articles, date)}],
+        messages=[{"role": "user", "content": _build_newsletter_prompt(articles, date)}],
     )
     text = response.choices[0].message.content or ""
     text = text.strip()
