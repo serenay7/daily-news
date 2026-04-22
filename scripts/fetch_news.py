@@ -312,7 +312,7 @@ def send_email(
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = f"Small Byte <{gmail_user}>"
+    msg["From"] = gmail_user
     msg["To"] = gmail_user
     msg["Bcc"] = ", ".join(recipients)
 
