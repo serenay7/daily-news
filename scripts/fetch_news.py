@@ -30,7 +30,7 @@ NEWS_SOURCES = [
     {"name": "Ars Technica",          "url": "https://feeds.arstechnica.com/arstechnica/index",     "category": "Tech"},
 ]
 
-MAX_PER_SOURCE = 3
+MAX_PER_SOURCE = 7
 SUMMARY_MAX_LEN = 350
 
 
