@@ -123,11 +123,22 @@ Rules:
 - Second line: > Generated {date.strftime('%Y-%m-%d')} at 08:00 UTC · {{n}} articles
 - Separate sections with ---
 - Categories with emojis: ## 🤖 AI, ## 💻 Tech (only include categories that have articles)
-- Each article: ### [Title](link) on its own line, then a blank line, then 1-2 sentence summary
+- Each article: ### [Title](link) on its own line, then a blank line, then the summary
 - NO **Source:** line — do not include the source name under the title
 - Footer: *Sources: [Name](url) · [Name](url)*
 - Do NOT add any text before or after the newsletter
 - Do NOT hallucinate facts not present in the summaries
+
+Title rules:
+- Rewrite titles to be short, punchy, and eye-catching — max 8 words
+- Drop filler words like "The role of", "introducing", "The most interesting"
+- Lead with the key subject: company, product, or action
+
+Summary rules:
+- 2-3 sentences max
+- Do NOT repeat or paraphrase the title in the first sentence — start with new information
+- Be specific: name numbers, companies, products, or implications
+- Write for a reader who already saw the headline
 
 Selection rules:
 - Pick the TOP 5 most newsworthy articles per category (max 5 AI, max 5 Tech)
