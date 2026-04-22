@@ -302,7 +302,7 @@ def send_email(
     app_password: str,
     recipients: list[str],
 ) -> None:
-    subject = f"Small Byte — {date.strftime('%B %d, %Y')}"
+    subject = f"Daily Tech & AI News — {date.strftime('%B %d, %Y')}"
 
     html_body = f"""
     <html><body style="font-family:sans-serif;max-width:640px;margin:auto;padding:24px;color:#222;">
