@@ -27,10 +27,11 @@ Add the bot to your **#daily-news** channel.
 
 | Secret | Description |
 |---|---|
+| `ANTHROPIC_API_KEY` | Anthropic API key for Claude generation |
 | `SLACK_BOT_TOKEN` | Slack bot token (`xoxb-…`) |
 | `SLACK_CHANNEL` | Channel name or ID, e.g. `#daily-news` |
 
-Go to **Settings → Secrets and variables → Actions → New repository secret** and add both.
+Go to **Settings → Secrets and variables → Actions → New repository secret** and add these values.
 
 ### 3. Enable Actions
 
@@ -54,7 +55,7 @@ You can also trigger it manually from **Actions → Daily Tech & AI Newsletter �
 
 ```bash
 pip install -r requirements.txt
-export SLACK_BOT_TOKEN=xoxb-...
-export SLACK_CHANNEL=#daily-news
+cp .env.example .env
+# Fill ANTHROPIC_API_KEY and optional Slack values in .env
 python scripts/fetch_news.py
 ```

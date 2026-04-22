@@ -1,2 +1,9 @@
 # Local Claude Code settings (contains secrets)
 .claude/settings.local.json
+
+# Local environment variables
+.env
+
+# Python cache files
+__pycache__/
+*.pyc

@@ -27,6 +27,7 @@ jobs:
 
       - name: Fetch news & post to Slack
         env:
+          GROQ_API_KEY:    ${{ secrets.GROQ_API_KEY }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL:   ${{ secrets.SLACK_CHANNEL }}
         run: python scripts/fetch_news.py

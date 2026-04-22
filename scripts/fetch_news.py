@@ -4,15 +4,18 @@ Daily Tech & AI News Newsletter
 Fetches from RSS feeds, posts to Slack, and saves a dated markdown archive file.
 
 Required env vars:
-  SLACK_BOT_TOKEN  - Slack bot token (xoxb-...)
-  SLACK_CHANNEL    - Channel name or ID (default: #daily-news)
+  GROQ_API_KEY    - Groq API key for newsletter generation
+  SLACK_BOT_TOKEN - Slack bot token (xoxb-...)
+  SLACK_CHANNEL   - Channel name or ID (default: #daily-news)
 """
 
 import os
 import re
 import datetime
+import json
 from pathlib import Path
 
+from groq import Groq
 import feedparser
 import requests
 
@@ -30,6 +33,19 @@ NEWS_SOURCES = [
 
 MAX_PER_SOURCE = 3
 SUMMARY_MAX_LEN = 350
+
+
+def load_dotenv() -> None:
+    env_path = Path(".env")
+    if not env_path.exists():
+        return
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
 
 
 def strip_html(text: str) -> str:
@@ -60,6 +76,53 @@ def fetch_articles() -> list[dict]:
         except Exception as exc:
             print(f"[WARN] Could not fetch {source['name']}: {exc}")
     return articles
+
+
+def _claude_prompt_payload(articles: list[dict], date: datetime.datetime) -> str:
+    payload = []
+    for article in articles:
+        payload.append({
+            "title": article["title"],
+            "source": article["source"],
+            "category": article["category"],
+            "summary": article["summary"],
+            "link": article["link"],
+        })
+
+    return (
+        "Create a concise daily newsletter in markdown from the JSON articles.\n"
+        f"Date: {date.strftime('%Y-%m-%d')}\n"
+        "Requirements:\n"
+        "- Keep heading exactly: # Daily Tech & AI News — <Month DD, YYYY>\n"
+        "- Include a short one paragraph intro.\n"
+        "- Group by categories as ## AI and ## Tech.\n"
+        "- For each article include:\n"
+        "  - Title as markdown link\n"
+        "  - Source line in bold\n"
+        "  - A 1-2 sentence rewritten summary in plain english\n"
+        "- Keep overall length readable for Slack.\n"
+        "- Do not hallucinate facts that are not present in article summaries.\n\n"
+        f"Articles JSON:\n{json.dumps(payload, ensure_ascii=False)}"
+    )
+
+
+def generate_markdown_with_groq(
+    client: Groq,
+    model: str,
+    articles: list[dict],
+    date: datetime.datetime,
+) -> str:
+    response = client.chat.completions.create(
+        model=model,
+        max_tokens=2200,
+        temperature=0.2,
+        messages=[{"role": "user", "content": _claude_prompt_payload(articles, date)}],
+    )
+    text = response.choices[0].message.content or ""
+    text = text.strip()
+    if not text:
+        raise RuntimeError("Groq returned an empty newsletter response")
+    return text
 
 
 # ── Markdown ──────────────────────────────────────────────────────────────────
@@ -180,13 +243,28 @@ def save_markdown(content: str, date: datetime.datetime) -> Path:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
+    load_dotenv()
     date = datetime.datetime.utcnow()
     print(f"[INFO] Fetching news for {date.strftime('%Y-%m-%d')} …")
 
     articles = fetch_articles()
     print(f"[INFO] Fetched {len(articles)} articles")
 
+    groq_key = os.environ.get("GROQ_API_KEY")
+    groq_model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+
     markdown = build_markdown(articles, date)
+    if groq_key:
+        try:
+            print(f"[INFO] Generating newsletter with Groq model {groq_model} …")
+            client = Groq(api_key=groq_key)
+            markdown = generate_markdown_with_groq(client, groq_model, articles, date)
+            print("[OK] Generated newsletter with Groq")
+        except Exception as exc:
+            print(f"[WARN] Groq generation failed, using fallback formatter: {exc}")
+    else:
+        print("[WARN] GROQ_API_KEY not set — using fallback formatter")
+
     save_markdown(markdown, date)
 
     slack_token = os.environ.get("SLACK_BOT_TOKEN")
