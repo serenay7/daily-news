@@ -28,7 +28,6 @@ NEWS_SOURCES = [
     {"name": "MIT Technology Review", "url": "https://www.technologyreview.com/feed/",              "category": "AI"},
     {"name": "AI News",               "url": "https://www.artificialintelligence-news.com/feed/",   "category": "AI"},
     {"name": "Ars Technica",          "url": "https://feeds.arstechnica.com/arstechnica/index",     "category": "Tech"},
-    {"name": "IEEE Spectrum",         "url": "https://spectrum.ieee.org/feeds/feed.rss",            "category": "Tech"},
 ]
 
 MAX_PER_SOURCE = 3
@@ -80,14 +79,13 @@ def fetch_articles() -> list[dict]:
 
 NEWSLETTER_EXAMPLE = """# Daily Tech & AI News — April 21, 2026
 
-> Generated 2026-04-21 at 08:00 UTC · 12 articles
+> Generated 2026-04-21 at 08:00 UTC · 10 articles
 
 ---
 
 ## 🤖 AI
 
-### OpenAI Surpasses $25B Annualized Revenue, Eyes IPO
-**Source:** AI Flash Report
+### [OpenAI Surpasses $25B Annualized Revenue, Eyes IPO](https://example.com)
 
 OpenAI has surpassed $25 billion in annualized revenue and is reportedly taking early steps toward a public listing, potentially as soon as late 2026. Rival Anthropic is approaching $19 billion in annualized revenue, reflecting explosive demand for foundation-model APIs.
 
@@ -95,8 +93,7 @@ OpenAI has surpassed $25 billion in annualized revenue and is reportedly taking 
 
 ## 💻 Tech
 
-### Workday's Sana Agents Ship with 300+ Prebuilt Skills
-**Source:** VentureBeat
+### [Workday's Sana Agents Ship with 300+ Prebuilt Skills](https://example.com)
 
 Workday's co-founder-CEO unveiled the next wave of Sana, including a Self-Service Agent with 300+ prebuilt skills across pay, time, absence, and expense.
 
@@ -115,7 +112,7 @@ def _build_newsletter_prompt(articles: list[dict], date: datetime.datetime) -> s
         f'[{a["source"]}]({a["link"]})' for a in articles
     )
 
-    return f"""You are a tech newsletter writer. Produce output in EXACTLY this format — no deviations:
+    return f"""You are a tech newsletter editor. Produce output in EXACTLY this format — no deviations:
 
 <example>
 {NEWSLETTER_EXAMPLE}
@@ -125,19 +122,24 @@ Rules:
 - Heading: # Daily Tech & AI News — <Month DD, YYYY>
 - Second line: > Generated {date.strftime('%Y-%m-%d')} at 08:00 UTC · {{n}} articles
 - Separate sections with ---
-- Categories with emojis: ## 🤖 AI, ## 💻 Tech, ## 💰 Funding (only include if articles exist)
-- Each article: ### Title as markdown link, **Source:** Name, then 1-2 sentence summary
+- Categories with emojis: ## 🤖 AI, ## 💻 Tech (only include categories that have articles)
+- Each article: ### [Title](link) on its own line, then a blank line, then 1-2 sentence summary
+- NO **Source:** line — do not include the source name under the title
 - Footer: *Sources: [Name](url) · [Name](url)*
 - Do NOT add any text before or after the newsletter
 - Do NOT hallucinate facts not present in the summaries
 
+Selection rules:
+- Pick the TOP 5 most newsworthy articles per category (max 5 AI, max 5 Tech)
+- SKIP product reviews, buying guides, "best of" lists, recipes, lifestyle pieces, and opinion columns
+- Prefer news about company announcements, product launches, research, funding, and industry developments
+
 Date: {date.strftime('%B %d, %Y')}
-Article count: {len(articles)}
 
 Articles JSON:
 {json.dumps(payload, ensure_ascii=False, indent=2)}
 
-Sources footer:
+Sources footer (use only the sources whose articles you selected):
 {sources}"""
 
 
