@@ -3,7 +3,12 @@ name: Daily Tech & AI Newsletter
 on:
   schedule:
     - cron: "0 8 * * *"   # Every day at 08:00 UTC
-  workflow_dispatch:        # Manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      send_only:
+        description: "Skip news fetch/generation and just send existing markdown"
+        type: boolean
+        default: false
 
 permissions:
   contents: write           # Needed to commit the daily news file
@@ -31,6 +36,7 @@ jobs:
           GMAIL_USER:         ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_RECIPIENTS:   ${{ secrets.EMAIL_RECIPIENTS }}
+          SEND_ONLY:          ${{ inputs.send_only }}
         run: python scripts/fetch_news.py
 
       - name: Commit daily news file

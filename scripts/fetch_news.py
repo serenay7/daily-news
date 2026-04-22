@@ -331,27 +331,35 @@ def send_email(
 def main() -> None:
     load_dotenv()
     date = datetime.datetime.utcnow()
-    print(f"[INFO] Fetching news for {date.strftime('%Y-%m-%d')} …")
+    send_only = os.environ.get("SEND_ONLY", "").lower() in ("1", "true")
 
-    articles = fetch_articles()
-    print(f"[INFO] Fetched {len(articles)} articles")
-
-    groq_key = os.environ.get("GROQ_API_KEY")
-    groq_model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
-
-    markdown = build_markdown(articles, date)
-    if groq_key:
-        try:
-            print(f"[INFO] Generating newsletter with Groq model {groq_model} …")
-            client = Groq(api_key=groq_key)
-            markdown = generate_markdown_with_groq(client, groq_model, articles, date)
-            print("[OK] Generated newsletter with Groq")
-        except Exception as exc:
-            print(f"[WARN] Groq generation failed, using fallback formatter: {exc}")
+    if send_only:
+        md_path = Path("news") / date.strftime("%Y") / date.strftime("%m") / f"{date.strftime('%Y-%m-%d')}.md"
+        if not md_path.exists():
+            raise FileNotFoundError(f"No existing newsletter found at {md_path}")
+        markdown = md_path.read_text(encoding="utf-8")
+        print(f"[INFO] Send-only mode — loaded {md_path}")
     else:
-        print("[WARN] GROQ_API_KEY not set — using fallback formatter")
+        print(f"[INFO] Fetching news for {date.strftime('%Y-%m-%d')} …")
+        articles = fetch_articles()
+        print(f"[INFO] Fetched {len(articles)} articles")
 
-    save_markdown(markdown, date)
+        groq_key = os.environ.get("GROQ_API_KEY")
+        groq_model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+        markdown = build_markdown(articles, date)
+        if groq_key:
+            try:
+                print(f"[INFO] Generating newsletter with Groq model {groq_model} …")
+                client = Groq(api_key=groq_key)
+                markdown = generate_markdown_with_groq(client, groq_model, articles, date)
+                print("[OK] Generated newsletter with Groq")
+            except Exception as exc:
+                print(f"[WARN] Groq generation failed, using fallback formatter: {exc}")
+        else:
+            print("[WARN] GROQ_API_KEY not set — using fallback formatter")
+
+        save_markdown(markdown, date)
 
     gmail_user = os.environ.get("GMAIL_USER")
     app_password = os.environ.get("GMAIL_APP_PASSWORD")
